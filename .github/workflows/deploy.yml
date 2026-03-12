@@ -1,5 +1,6 @@
-name: zensical
+name: Deploy Site to 1Panel
 
+# 触发条件：当代码推送到 main 分支时触发
 on:
   push:
     branches:
@@ -10,30 +11,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. 拉取仓库代码
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: checkout
-      uses: actions/checkout@v4
-
-    - name: setup ssh
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-
-    - name: add server
-      run: |
-        ssh-keyscan 161.118.223.143 >> ~/.ssh/known_hosts
-
-    - name: backup old site
-      run: |
-        ssh root@161.118.223.143 "
-        mkdir -p /opt/backup/docs &&
-        cp -r /opt/1panel/www/sites/docs.lmhhh.wiki/index \
-        /opt/backup/docs/site_$(date +%s)
-        "
-
-    - name: deploy site
-      run: |
-        rsync -avz --delete \
-        site/ \
-        root@161.118.223.143:/opt/1panel/www/sites/docs.lmhhh.wiki/index/
+      # 2. 部署到服务器
+      - name: Deploy to Server
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          ARGS: "-avzr --delete" # 开启增量同步，并删除目标目录中源目录没有的文件
+          SOURCE: "site/"        # 注意斜杠很重要，代表推送 site 文件夹下的“内容”而非文件夹本身
+          REMOTE_HOST: ${{ secrets.SERVER_HOST }}
+          REMOTE_USER: ${{ secrets.SERVER_USERNAME }}
+          TARGET: "/opt/1panel/www/sites/docs.lmhhh.wiki/index"
